@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Share Your Location</title>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+
+<style>
+  body, html {
+    height: 100%;
+    margin: 0;
+    font-family: 'Fredoka', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    background-color: #FFF6E8;
+  }
+
+  h2 {
+    color: #1E40AF;
+    margin-top: 30px;
+  }
+
+  #map {
+    height: 50vh;
+    width: 90vw;
+    max-width: 600px;
+    margin: 20px 0;
+    border: 4px solid #1E40AF;
+    border-radius: 10px;
+  }
+
+  #coords {
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #1E40AF;
+  }
+
+  .search-bar {
+    display: flex;
+    gap: 8px;
+    margin: 10px 0;
+  }
+
+  .search-bar input {
+    padding: 10px;
+    border: 2px solid #1E40AF;
+    border-radius: 8px;
+    font-size: 16px;
+    flex: 1;
+  }
+
+  button {
+    padding: 15px 25px;
+    font-size: 18px;
+    background-color: #1E40AF;
+    color: #FFF6E8;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: background 0.3s ease;
+    margin-bottom: 15px;
+  }
+
+  button:hover {
+    background-color: #1a3799;
+  }
+
+  .whatsapp {
+    background-color: #25D366;
+  }
+  .whatsapp:hover {
+    background-color: #1da851;
+  }
+</style>
+
+</head>
+<body>
+  <h2>Share Your Location</h2>
+
+  <!-- search bar -->
+  <div class="search-bar">
+    <input type="text" id="locationInput" placeholder="Enter a location...">
+    <button onclick="searchLocation()">Search</button>
+  </div>
+
+  <div id="map">Loading map...</div>
+  <div id="coords">Latitude: -- , Longitude: --</div>
+
+  <button id="copyBtn" disabled>Step 1: Copy Location Link</button>
+  <button onclick="window.open('https://m.me/cheramiph', '_blank')">Step 2: Send to Messenger</button>
+  <button class="whatsapp" onclick="sendWhatsApp()">Send to WhatsApp</button>
+
+  
+<div style="width: 100%; position: relative; margin-top: 30px;">
+  <svg viewBox="0 0 1440 180" style="display: block;" xmlns="http://www.w3.org/2000/svg">
+    <path fill="#1E40AF" d="M0,0 C480,160 960,160 1440,0 L1440,180 L0,180 Z"></path>
+  </svg>
+  <div style="
+    background-color: #1E40AF;
+    color: #FFF6E8;
+    text-align: center;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 18px;
+    padding-bottom: 20px;
+    margin-top: -5px;
+  ">
+    <strong style="font-size: 20px;">CHER AMI FLOWERS & GIFTS STORE</strong>
+  </div>
+</div>
+
+
+  <script>
+    let map, marker, userLat, userLng;
+
+    function initMap() {
+      if (!navigator.geolocation) {
+        alert("Geolocation is not supported by your browser");
+        document.getElementById('map').innerText = "Geolocation not supported";
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        position => {
+          userLat = position.coords.latitude;
+          userLng = position.coords.longitude;
+
+          const coordsDiv = document.getElementById('coords');
+          coordsDiv.textContent = `Latitude: ${userLat.toFixed(6)} , Longitude: ${userLng.toFixed(6)}`;
+
+          const mapDiv = document.getElementById('map');
+          mapDiv.innerText = "";
+
+          map = L.map('map').setView([userLat, userLng], 16);
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap'
+          }).addTo(map);
+
+          marker = L.marker([userLat, userLng], { draggable: true }).addTo(map)
+            .bindPopup('Drag to adjust your location')
+            .openPopup();
+
+          marker.on('dragend', function(e) {
+            const pos = marker.getLatLng();
+            userLat = pos.lat;
+            userLng = pos.lng;
+            document.getElementById('coords').textContent =
+              `Latitude: ${userLat.toFixed(6)} , Longitude: ${userLng.toFixed(6)}`;
+          });
+
+          document.getElementById('copyBtn').disabled = false;
+        },
+        () => {
+          alert("Unable to retrieve your location");
+          document.getElementById('map').innerText = "Unable to get location";
+        }
+      );
+    }
+
+    function copyLocationLink() {
+      const mapsLink = `https://www.google.com/maps/search/?api=1&query=${userLat},${userLng}`;
+      navigator.clipboard.writeText(mapsLink).then(() => {
+        alert("Location link copied! You can now paste it to your delivery chat.");
+      }, () => {
+        alert("Failed to copy location link. Please copy manually:\n" + mapsLink);
+      });
+    }
+
+    // Search by text
+    function searchLocation() {
+      const location = document.getElementById("locationInput").value;
+      if (!location) return;
+
+      fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${location}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.length > 0) {
+            userLat = parseFloat(data[0].lat);
+            userLng = parseFloat(data[0].lon);
+
+            if (marker) map.removeLayer(marker);
+
+            marker = L.marker([userLat, userLng], { draggable: true }).addTo(map)
+              .bindPopup(location)
+              .openPopup();
+
+            map.setView([userLat, userLng], 15);
+            document.getElementById('coords').textContent =
+              `Latitude: ${userLat.toFixed(6)} , Longitude: ${userLng.toFixed(6)}`;
+          } else {
+            alert("Location not found.");
+          }
+        })
+        .catch(err => console.error(err));
+    }
+
+    function sendWhatsApp() {
+      const link = `https://www.google.com/maps/search/?api=1&query=${userLat},${userLng}`;
+      window.open(`https://wa.me/639760978789?text=${encodeURIComponent("Here is my location: " + link)}`, "_blank");
+    }
+
+    document.getElementById('copyBtn').addEventListener('click', copyLocationLink);
+  </script>
+
+  <script>
+    function isAndroidMessengerWebView() {
+      const ua = navigator.userAgent.toLowerCase();
+      return ua.includes("android") && ua.includes("fbav");
+    }
+
+    function redirectToExternalBrowser() {
+      const url = window.location.href;
+      window.location = `intent://${url.replace(/^https?:\/\//, '')}#Intent;scheme=https;package=com.android.chrome;end`;
+    }
+
+    window.onload = function () {
+      if (isAndroidMessengerWebView()) {
+        redirectToExternalBrowser();
+      } else {
+        initMap();
+      }
+    };
+  </script>
+
+</body>
+</html>
